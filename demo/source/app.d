@@ -2,7 +2,10 @@ module app;
 
 import std.stdio;
 import std.getopt;
+import std.math;
+
 import core.stdc.stdlib;
+import core.stdc.string;
 
 import onnxruntime_c_api;
 
@@ -32,19 +35,19 @@ void ort_abort_on_error(const(OrtApi)* g_ort, OrtStatus* status) {
 //     input[i] = y[i] / sum;
 //   }
 // }
-void softmax(T)(ref T input) {
-    float rowmax = float.min;
-    for (size_t i = 0; i < input.length; i++) {
+void softmax(T)(ref T input, size_t n) {
+    float rowmax = -float.infinity;
+    for (size_t i = 0; i < n; i++) {
         if (input[i] > rowmax) {
             rowmax = input[i];
         }
     }
-    float[] y = new float[input.length];
+    float[] y = new float[n];
     float sum = 0.0f;
-    for (size_t i = 0; i < input.length; i++) {
+    for (size_t i = 0; i < n; i++) {
         sum += y[i] = exp(input[i] - rowmax);
     }
-    for (size_t i = 0; i < input.length; i++) {
+    for (size_t i = 0; i < n; i++) {
         input[i] = y[i] / sum;
     }
 }
@@ -138,6 +141,13 @@ int main(string[] args) {
     const size_t model_input_len = 1 * 1 * 28 * 28 * float.sizeof;
     float* model_input = cast(float*) malloc(
         input_shape[0] * input_shape[1] * input_shape[2] * input_shape[3] * float.sizeof);
+    // zero the input tensor
+    memset(model_input, 0, model_input_len);
+
+    // draw a vertical line to try to get it recognized as a 1
+    for (size_t i = 0; i < 28; i++) {
+        model_input[i * 28 + 14] = 1.0f;
+    }
 
     OrtValue* input_tensor;
     writefln("creating input tensor");
@@ -168,6 +178,25 @@ int main(string[] args) {
     status = g_ort.GetTensorMutableData(output_tensor, cast(void**)&output_tensor_data);
     ort_abort_on_error(g_ort, status);
     assert(output_tensor_data !is null, "failed to get output tensor data");
+
+    // softmax the output
+    softmax(output_tensor_data, 10);
+
+    // pick the max element
+    float max_value = -float.infinity;
+    size_t max_index = -1;
+    for (size_t i = 0; i < 10; i++) {
+        if (output_tensor_data[i] > max_value) {
+            max_value = output_tensor_data[i];
+            max_index = i;
+        }
+    }
+
+    writefln("result: %d", max_index);
+
+    // release tensors
+    g_ort.ReleaseValue(output_tensor);
+    g_ort.ReleaseValue(input_tensor);
 
     // clean up
     g_ort.ReleaseSessionOptions(session_options);
