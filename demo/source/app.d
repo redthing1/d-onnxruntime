@@ -138,25 +138,38 @@ int main(string[] args) {
 
     // mnist input shape is 1,1,28,28
     const long[] input_shape = [1, 1, 28, 28];
-    const size_t model_input_len = 1 * 1 * 28 * 28 * float.sizeof;
-    float* model_input = cast(float*) malloc(
-        input_shape[0] * input_shape[1] * input_shape[2] * input_shape[3] * float.sizeof);
-    // zero the input tensor
-    memset(model_input, 0, model_input_len);
+    const size_t input_tensor_data_size = 1 * 1 * 28 * 28 * float.sizeof;
+    float* input_tensor_data = cast(float*) malloc(input_tensor_data_size);
+    memset(input_tensor_data, 0, input_tensor_data_size);
 
     // draw a vertical line to try to get it recognized as a 1
     for (size_t i = 0; i < 28; i++) {
-        model_input[i * 28 + 14] = 1.0f;
+        input_tensor_data[i * 28 + 14] = 1.0f;
     }
 
-    OrtValue* input_tensor;
+    int is_tensor;
+
     writefln("creating input tensor");
-    status = g_ort.CreateTensorWithDataAsOrtValue(memory_info, model_input, model_input_len, input_shape.ptr, input_shape
+    OrtValue* input_tensor;
+    status = g_ort.CreateTensorWithDataAsOrtValue(memory_info, input_tensor_data, input_tensor_data_size, input_shape.ptr, input_shape
             .length, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, &input_tensor);
     ort_abort_on_error(g_ort, status);
     assert(input_tensor !is null, "failed to create input tensor");
-    int is_tensor;
     status = g_ort.IsTensor(input_tensor, &is_tensor);
+    ort_abort_on_error(g_ort, status);
+
+    // allocate an output tensor here as well; ignore the code later that does it, we'll delete it
+    writefln("creating output tensor");
+    OrtValue* output_tensor;
+    const long[] output_shape = [1, 10];
+    size_t output_tensor_data_size = 10 * float.sizeof;
+    float* output_tensor_data = cast(float*) malloc(output_tensor_data_size);
+    memset(output_tensor_data, 0, output_tensor_data_size);
+    status = g_ort.CreateTensorWithDataAsOrtValue(memory_info, output_tensor_data, output_tensor_data_size, output_shape.ptr, output_shape
+            .length, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, &output_tensor);
+    ort_abort_on_error(g_ort, status);
+    assert(output_tensor !is null, "failed to create output tensor");
+    status = g_ort.IsTensor(output_tensor, &is_tensor);
     ort_abort_on_error(g_ort, status);
 
     g_ort.ReleaseMemoryInfo(memory_info);
@@ -164,7 +177,7 @@ int main(string[] args) {
     char*[] input_names = [cast(char*) "Input3"];
     char*[] output_names = [cast(char*) "Plus214_Output_0"];
 
-    OrtValue* output_tensor;
+    // OrtValue* output_tensor;
 
     writefln("running inference");
     status = g_ort.Run(session, null, input_names.ptr, &input_tensor, 1, output_names.ptr, 1, &output_tensor);
@@ -172,11 +185,6 @@ int main(string[] args) {
     assert(output_tensor !is null, "failed to run inference");
     g_ort.IsTensor(output_tensor, &is_tensor);
     assert(is_tensor, "output is not a tensor");
-
-    int ret = 0;
-    float* output_tensor_data;
-    status = g_ort.GetTensorMutableData(output_tensor, cast(void**)&output_tensor_data);
-    ort_abort_on_error(g_ort, status);
     assert(output_tensor_data !is null, "failed to get output tensor data");
 
     // softmax the output
