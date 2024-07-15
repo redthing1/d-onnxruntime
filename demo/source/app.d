@@ -192,7 +192,7 @@ int main(string[] args) {
         }
     }
 
-    writefln("result: %d", max_index);
+    writefln("result: %d (%0.2f%%)", max_index, max_value * 100);
 
     // release tensors
     g_ort.ReleaseValue(output_tensor);
