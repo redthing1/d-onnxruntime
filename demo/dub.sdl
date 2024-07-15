@@ -1,0 +1,6 @@
+name "demo"
+description "d-onnxruntime example"
+authors "redthing1"
+copyright "Copyright © 2024, redthing1"
+license "proprietary"
+dependency "d-onnxruntime" path=".."

@@ -1,0 +1,9 @@
+name "d-onnxruntime"
+description "D bindings to onnxruntime."
+authors "redthing1"
+copyright "Copyright © 2024, redthing1"
+license "Apache-2.0"
+
+libs "onnxruntime"
+
+targetType "library"
