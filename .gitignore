@@ -14,5 +14,6 @@ d-onnxruntime-test-*
 *.exe
 *.pdb
 *.o
+*.a
 *.obj
 *.lst
